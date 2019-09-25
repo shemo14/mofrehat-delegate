@@ -1,0 +1,1 @@
+export default {	labelBackground : '#0A8EBB',	white			: '#fff',	darkRed 		: '#B7264B',	lightgray		: '#c6e1ef',	boldgray		: '#707070',	mediumgray		: '#939393',	yellowBorder	: '#f3b541',	purpleBorder	: '#615fa0',}
