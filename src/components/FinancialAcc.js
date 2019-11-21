@@ -13,9 +13,9 @@ import {getFinancial, profile} from "../actions";
 import {connect} from "react-redux";
 import {NavigationEvents} from "react-navigation";
 
-
-
 const height = Dimensions.get('window').height;
+const width  = Dimensions.get('window').width;
+
 const IS_IPHONE_X = height === 812 || height === 896;
 
 
@@ -29,7 +29,6 @@ class FinancialAcc extends Component {
             availabel: 0,
         }
     }
-
 
     componentWillMount() {
         const token =  this.props.user ?  this.props.user.token : null;
@@ -46,6 +45,22 @@ class FinancialAcc extends Component {
         }
     }
 
+    renderNoData(){
+        if ((this.props.financial).length <= 0){
+            return(
+                <View style={{ width: width - 50, backgroundColor: '#fff', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 10, height: (70*height)/100 , borderColor: '#ddd', borderWidth: 1 }}>
+                    <Image source={require('../../assets/images/empty.png')} resizeMode={'contain'} style={{ justifyContent: 'center', alignSelf: 'center', width: 200, height: 200 }} />
+                    <View style={{ flexDirection: 'row', marginTop: 15 }}>
+                        <Text style={[styles.type ,{color:COLORS.labelBackground, fontSize: 16, fontWeight: 'bold', fontFamily: I18nManager.isRTL ? 'cairo' : 'openSans' }]}>{i18n.t('noData')}</Text>
+                        <Image source={require('../../assets/images/sad-emoji-png.png')} style={{ height: 25, width: 25, marginHorizontal: 5 }} resizeMode={'contain'}/>
+                    </View>
+                </View>
+            );
+        }
+
+        return <View />
+    }
+
     _keyExtractor = (item, index) => item.id;
 
     renderItems = (item) => {
@@ -59,8 +74,6 @@ class FinancialAcc extends Component {
             </Animatable.View>
         );
     }
-
-
 
 
     setAnimate(availabel){
@@ -99,15 +112,11 @@ class FinancialAcc extends Component {
         this.RBSheet.close()
     }
 
-
-
     render() {
-
         const backgroundColor = this.state.backgroundColor.interpolate({
             inputRange: [0, 1],
             outputRange: ['rgba(0, 0, 0, 0)', '#00000099']
         });
-
 
         return (
             <Container>
@@ -126,12 +135,16 @@ class FinancialAcc extends Component {
                     { this.renderLoader() }
                     <ImageBackground source={  I18nManager.isRTL ? require('../../assets/images/bg_blue_big.png') : require('../../assets/images/bg_blue_big2.png')} resizeMode={'cover'} style={styles.imageBackground}>
                         <View style={[Platform.OS === 'ios' ? styles.mt90 : styles.mT70 , styles.ph25]}>
-
-                            <View style={[styles.directionRowSpace , styles.mb10 , styles.ph23]}>
-                                <Text style={[styles.type ]}>{ i18n.t('number') }</Text>
-                                <Text style={[styles.type ]}>{ i18n.t('orderDet') }</Text>
-                                <Text style={[styles.type ]}>{ i18n.t('price') }</Text>
-                            </View>
+                            { this.renderNoData() }
+                            {
+                                (this.props.financial).length > 0 ? (
+                                    <View style={[styles.directionRowSpace , styles.mb10 , styles.ph23]}>
+                                        <Text style={[styles.type ]}>{ i18n.t('number') }</Text>
+                                        <Text style={[styles.type ]}>{ i18n.t('orderDet') }</Text>
+                                        <Text style={[styles.type ]}>{ i18n.t('price') }</Text>
+                                    </View>
+                                ) : (<View />)
+                            }
                             <View style={[styles.flatContainer , {paddingHorizontal:0}]}>
                                 <FlatList
                                     data={this.props.financial}

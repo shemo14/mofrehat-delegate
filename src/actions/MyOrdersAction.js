@@ -1,14 +1,24 @@
 import axios from "axios";
 import CONST from "../consts";
-import {AsyncStorage} from "react-native";
+import Reactotron from '../../ReactotronConfig';
 
 
-export const getOrders = (lang ,type , token) => {
+export const getOrders = (lang ,type , token, props) => {
     return (dispatch) => {
-        getOrdersItems(lang, type ,token , dispatch)
+		axios({
+			url: CONST.url + 'delegateActiveChecked',
+			headers: token != null ? {Authorization: token} : null,
+			method: 'POST',
+			data: { lang }
+		}).then(response => {
+			if (response.data.status == 200){
+				getOrdersItems(lang, type ,token , dispatch)
+			}else{
+				notConfirmed(props, dispatch)
+			}
+		})
     }
 };
-
 
 export const deleteOrder = (lang , order_id , token , type  ) => {
     return (dispatch) => {
@@ -36,6 +46,11 @@ export const acceptOrder = (lang , order_id , token  ) => {
         })
 
     }
+};
+
+const notConfirmed = (props, dispatch) => {
+	// props.navigation.navigate('notConfirmed');
+	dispatch({type: 'notConfirmed'})
 };
 
 const getOrdersItems = (lang , type , token , dispatch ) => {

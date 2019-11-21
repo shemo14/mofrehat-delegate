@@ -1,10 +1,10 @@
-const INITIAL_STATE = { register : [] , loader : true };
+const INITIAL_STATE = { finishOrder : null, loader : true };
 
 export default (state = INITIAL_STATE, action) => {
     switch (action.type) {
-        case 'register':{
+        case 'finishOrder':{
             return {
-                register: action.payload,
+                finishOrder: action.payload.msg,
                 loader: action.payload.status == 200 ? false : true
             };
         }

@@ -9,3 +9,6 @@ export * from './NewOrderAction';
 export * from './FinancialAction';
 export * from './SuggestionsAction';
 export * from './ReportAction';
+export * from './RegisterAction';
+export * from './CityAction';
+export * from './FinishOrderAction';

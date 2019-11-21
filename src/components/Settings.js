@@ -1,16 +1,15 @@
 import React, { Component } from "react";
 import {View, Text, Image, TouchableOpacity, I18nManager, Linking, Platform, Dimensions, ImageBackground, Animated,Switch} from "react-native";
-import {Container, Content, Icon, Header, Left, Button, Right, Item, Picker} from 'native-base'
+import {Container, Content, Icon, Header, Left, Button, Right, Item, Picker, Toast} from 'native-base'
 import styles from '../../assets/styles'
 import i18n from '../../locale/i18n'
 import COLORS from '../../src/consts/colors'
 import {connect} from "react-redux";
-import {DoubleBounce} from "react-native-loader";
 import axios from "axios";
 import CONST from "../consts";
-import {updateProfile , chooseLang} from "../actions";
+import {logout, tempAuth , chooseLang} from "../actions";
 import * as Animatable from 'react-native-animatable';
-
+import Modal from "react-native-modal";
 
 
 const height = Dimensions.get('window').height;
@@ -28,7 +27,8 @@ class Settings extends Component {
             availabel: 0,
             value:0,
             SwitchOnValueHolder:false,
-            language:this.props.lang
+            language:this.props.lang,
+			isModalPassVisible: false,
         }
     }
 
@@ -39,9 +39,36 @@ class Settings extends Component {
         }
     }
 
-    stopNotification = (value) =>{
-        this.setState({  SwitchOnValueHolder:!this.state.SwitchOnValueHolder})
-    }
+	_toggleModalLang = () => this.setState({ isModalLangVisible: !this.state.isModalLangVisible });
+
+	componentWillMount() {
+		axios({
+			url: CONST.url + 'notification_status',
+			method: 'POST',
+			headers: this.props.user != null ? {Authorization: this.props.user.token} : null,
+			data: {lang: this.props.lang}
+		}).then(response => {
+			this.setState({
+				SwitchOnValueHolder: response.data.data.status,
+			})
+		})
+	}
+
+	stopNotification = (value) =>{
+		this.setState({  SwitchOnValueHolder:!this.state.SwitchOnValueHolder})
+
+		axios({
+			method: 'POST',
+			url: CONST.url + 'stop_notifications',
+			headers: this.props.user != null ? {Authorization: this.props.user.token} : null,})
+			.then(response => {
+				Toast.show({
+					text: response.data.msg,
+					type: response.data.status == 200 ? "success" : "danger",
+					duration: 3000
+				});
+			})
+	}
 
     setAnimate(availabel){
         if (availabel === 0){
@@ -76,8 +103,21 @@ class Settings extends Component {
         }
     }
 
-    render() {
+    onDeleteAccount(){
+		axios({
+			url: CONST.url + 'delete_account',
+			method: 'POST',
+			headers: {Authorization: this.props.user.token},
+			data: {lang: this.props.lang}
+		}).then(response => {
+			this.props.logout(this.props.user.token);
+			this.props.tempAuth();
+		});
 
+		this.props.navigation.navigate('login');
+    }
+
+    render() {
         const backgroundColor = this.state.backgroundColor.interpolate({
             inputRange: [0, 1],
             outputRange: ['rgba(0, 0, 0, 0)', '#00000099']
@@ -136,18 +176,30 @@ class Settings extends Component {
                             </Animatable.View>
 
                             <Animatable.View animation="fadeInUp" duration={1700}>
-                                <TouchableOpacity  onPress={() => this.props.navigation.navigate('login')} style={styles.delAcc}>
+                                <TouchableOpacity onPress={() => this._toggleModalLang()} style={styles.delAcc}>
                                     <Text style={[styles.type ,{color:'#ff3c3c'}]}>{ i18n.t('deleteAcc') }</Text>
                                 </TouchableOpacity>
                             </Animatable.View>
-
-
-
                         </View>
                     </ImageBackground>
                 </Content>
+				<Modal style={{}} isVisible={this.state.isModalLangVisible} onBackdropPress={() => this._toggleModalLang()}>
+					<View style={[ styles.filterModal, {paddingTop:15}]}>
+						<View style={styles.viewLine} />
+						<Text style={{fontSize:16 , alignSelf:'center'}}>{ i18n.t('chooseLang') }</Text>
+						<View style={styles.modalLine} />
+						<View>
+                            <View>
+                                <Image source={require('../../assets/images/delete_account.png')} style={{ height: 100, width: 100, alignSelf: 'center' }} resizeMode={'contain'} />
+								<Text style={[styles.type ,{color:COLORS.labelBackground, marginTop: 5, fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 10}]}>{i18n.t('deleteAccount')}</Text>
+                            </View>
+							<Button onPress={() => this.onDeleteAccount()} style={[styles.loginBtn , { marginTop: 15, width: 90, height: 40 }]}>
+								<Text style={styles.btnTxt}>{ i18n.t('ok') }</Text>
+							</Button>
+						</View>
+					</View>
+				</Modal>
             </Container>
-
         );
     }
 }
@@ -159,4 +211,4 @@ const mapStateToProps = ({ profile, lang }) => {
     };
 };
 
-export default connect(mapStateToProps, {updateProfile , chooseLang})(Settings);
+export default connect(mapStateToProps, {logout, tempAuth, chooseLang})(Settings);

@@ -1,4 +1,4 @@
-const INITIAL_STATE = { myOrders : [],deleteOrder:null , acceptOrder:null , loader : true };
+const INITIAL_STATE = { myOrders : [],deleteOrder:null , acceptOrder:null , loader : true, notConfirmed: false };
 
 export default (state = INITIAL_STATE, action) => {
     switch (action.type) {
@@ -19,6 +19,9 @@ export default (state = INITIAL_STATE, action) => {
                 acceptOrder: action.payload.msg,
                 loader: action.payload.status == 200 ? false : true
             };
+        }
+        case 'notConfirmed':{
+            return ({ ...state, notConfirmed: true, myOrders: [] });
         }
 
         default:

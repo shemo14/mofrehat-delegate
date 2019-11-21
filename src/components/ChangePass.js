@@ -5,6 +5,9 @@ import styles from '../../assets/styles'
 import i18n from '../../locale/i18n'
 import {DoubleBounce} from "react-native-loader";
 import * as Animatable from 'react-native-animatable';
+import axios from 'axios';
+import CONST from "../consts";
+import {connect} from "react-redux";
 
 
 class ChangePass extends Component {
@@ -18,25 +21,59 @@ class ChangePass extends Component {
     }
 
     renderSubmit(){
+		if (this.state.newPass == '' || this.state.reNewPass == '' ){
+			return (
+				<Button disabled style={[styles.loginBtn ,styles.btnWidth, { backgroundColor: '#999' }]}>
+					<Text style={styles.btnTxt}>{ i18n.t('next') }</Text>
+				</Button>
+			);
+		}
+
         if (this.state.isSubmitted){
             return(
-                <DoubleBounce size={20} color="#B7264B" />
+				<View style={{ justifyContent: 'center', alignItems: 'center' }}>
+					<DoubleBounce size={20} color="#B7264B" style={{ alignSelf: 'center' }} />
+				</View>
             )
         }
 
         return (
-            <Button onPress={() => this.onNextPressed()} style={styles.loginBtn}>
+            <Button onPress={() => this.renewPassword()} style={styles.loginBtn}>
                 <Text style={styles.btnTxt}>{ i18n.t('next') }</Text>
             </Button>
         );
     }
 
-    onNextPressed() {
-        this.props.navigation.navigate("login" );
+	renewPassword() {
+		if(this.state.newPass != this.state.reNewPass){
+			Toast.show({
+				text: i18n.t('verifyPassword'),
+				type: "danger",
+				duration: 3000
+			});
+			return false
+		}
+
+		const id = this.props.navigation.state.params.id;
+		this.setState({ isSubmitted: true });
+		axios.post(CONST.url + 'change_password' ,{
+			id: id,
+			password: this.state.newPass,
+			lang:this.props.lang
+		}).then(response => {
+		    if (response.data.status === 200)
+			    this.props.navigation.navigate("login" );
+
+			Toast.show({
+				text: response.data.msg,
+				type: response.data.status === 200 ? "success" :"danger",
+				duration: 3000
+			});
+		});
     }
+
     render() {
         return (
-
             <Container style={styles.container}>
 
                 <Content contentContainerStyle={styles.flexGrow}>
@@ -59,7 +96,6 @@ class ChangePass extends Component {
                                                 <Label style={[styles.label]}>{ i18n.t('newPass') }</Label>
                                                 <Input autoCapitalize='none' onChangeText={(newPass) => this.setState({newPass})} secureTextEntry style={styles.input}  />
                                             </Item>
-
                                         </View>
 
                                         <View style={[ styles.itemView , styles.inputMarginTop ]}>
@@ -67,7 +103,6 @@ class ChangePass extends Component {
                                                 <Label style={[styles.label]}>{ i18n.t('verifyNewPass') }</Label>
                                                 <Input autoCapitalize='none' onChangeText={(reNewPass) => this.setState({reNewPass})} secureTextEntry style={styles.input}  />
                                             </Item>
-
                                         </View>
 
                                         <View style={[styles.loginBtnContainer , styles.mt45 ]}>
@@ -76,7 +111,6 @@ class ChangePass extends Component {
 
                                     </Form>
                                 </KeyboardAvoidingView>
-
                             </View>
                         </View>
                 </Content>
@@ -85,4 +119,10 @@ class ChangePass extends Component {
     }
 }
 
-export default ChangePass;
+const mapStateToProps = ({ profile, lang }) => {
+	return {
+		user: profile.user,
+		lang: lang.lang,
+	};
+};
+export default connect(mapStateToProps, {})(ChangePass);

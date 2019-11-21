@@ -61,12 +61,11 @@ class AboutApp extends Component {
         }
     }
 
-
     componentWillMount() {
         this.props.getAboutApp( this.props.lang )
     }
 
-    renderLoader(){
+	renderLoader(){
         if (this.props.loader){
             return(
                 <View style={{ alignItems: 'center', justifyContent: 'center', height: height , alignSelf:'center' , backgroundColor:'#fff' , width:'100%' , position:'absolute' , zIndex:1  }}>

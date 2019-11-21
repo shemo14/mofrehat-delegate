@@ -20,6 +20,17 @@ export const tempAuth = () => {
 };
 
 
+export const activeAccount = phone => {
+    return (dispatch) => {
+        dispatch({ type: 'active_account' });
+        axios.post(CONST.url + 'active_account', { phone }).then(response => {
+            if (response.data.status != 200){
+                alert(response.data.msg);
+            }
+        })
+    };
+};
+
 const handelLogin = (dispatch, data) => {
     if (data.status != 200){
         loginFailed(dispatch, data)

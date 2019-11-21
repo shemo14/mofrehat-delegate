@@ -11,14 +11,12 @@ import Modal from "react-native-modal";
 import Communications from "react-native-communications";
 import * as Animatable from 'react-native-animatable';
 import {NavigationEvents} from "react-navigation";
-import {getNewOrder, profile , acceptOrder , getReportsReasons , setReport} from "../actions";
+import {getNewOrder, profile , acceptOrder , getReportsReasons , setReport, finishOrder} from "../actions";
 import {connect} from "react-redux";
-
+import ReactotronConfig from '../../ReactotronConfig';
 
 const height = Dimensions.get('window').height;
 const IS_IPHONE_X = height === 812 || height === 896;
-
-
 
 class NewOrderDet extends Component {
     constructor(props){
@@ -33,6 +31,9 @@ class NewOrderDet extends Component {
             reportModal: false,
             checkedReason: false,
             selectedId: 1,
+            loader: true,
+            items: [],
+            reasons: [],
         }
     }
 
@@ -42,9 +43,10 @@ class NewOrderDet extends Component {
 
     componentWillMount() {
         const token =  this.props.user ?  this.props.user.token : null;
-        this.props.getNewOrder( this.props.lang , this.props.navigation.state.params.id , token )
-        this.props.getReportsReasons( this.props.lang  , token )
+        this.props.getNewOrder( this.props.lang , this.props.navigation.state.params.id , token );
+        this.props.getReportsReasons( this.props.lang  , token );
     }
+
     reportModal = () => {
         this.setState({ reportModal: !this.state.reportModal });
     };
@@ -53,6 +55,7 @@ class NewOrderDet extends Component {
         this.setState({ selectedId: reasonId });
 
     }
+
     sendReport(){
         const token =  this.props.user ?  this.props.user.token : null;
         this.props.setReport( this.props.lang , this.props.navigation.state.params.id ,this.state.selectedId  , token )
@@ -60,8 +63,12 @@ class NewOrderDet extends Component {
         this.reportModal()
     }
 
+    componentWillReceiveProps(nextProps) {
+        this.setState({ loader: nextProps.loader, items: nextProps.newOrder.items, reasons: nextProps.reportsReasons })
+    }
+
     renderLoader(){
-        if (this.props.loader){
+        if (this.state.loader){
             return(
                 <View style={{ alignItems: 'center', justifyContent: 'center', height: height , alignSelf:'center' , backgroundColor:'#fff' , width:'100%' , position:'absolute' , zIndex:1  }}>
                     <DoubleBounce size={20} color={COLORS.labelBackground} />
@@ -69,6 +76,7 @@ class NewOrderDet extends Component {
             );
         }
     }
+
     setAnimate(availabel){
         if (availabel === 0){
             Animated.timing(
@@ -117,8 +125,14 @@ class NewOrderDet extends Component {
         this.props.navigation.navigate('myOrders')
     }
 
+	evaluateModal = () => {
+		const token =  this.props.user ?  this.props.user.token : null;
+		this.props.finishOrder( this.props.lang , this.props.navigation.state.params.id , token )
+        this.props.navigation.navigate('myOrders')
+	};
+
     renderBtn(){
-        if(this.props.newOrder.status ==0){
+        if(this.props.newOrder.status == 0){
             return(
                 <Animatable.View animation="flash" duration={1400}>
                     <Button onPress={() => this.acceptOrder()} style={[styles.loginBtn , styles.mb20]}>
@@ -127,13 +141,14 @@ class NewOrderDet extends Component {
                 </Animatable.View>
             )
         }
-        else if(this.props.newOrder.status ==1){
-            return(
-                <Animatable.View animation="flash" duration={1400}>
-                    <Button disabled={true} style={[styles.loginBtn , styles.mb20 , {backgroundColor:'#e5e5e5'}]}>
-                        <Text style={[styles.btnTxt , {color:'#888888'}]}>{ i18n.t('hanging') }</Text>
-                    </Button>
-                </Animatable.View>
+        else if(this.props.newOrder.status == 1){
+            return (
+				<Animatable.View animation="flash" duration={1400}>
+					<Button  onPress={() => this.evaluateModal()} style={[styles.cartBtn , styles.mv35 ]}>
+						<Image source={require('../../assets/images/tick_white.png')} style={[styles.btnImg , styles.transform]} resizeMode={'contain'}/>
+						<Text style={styles.btnTxt}> { i18n.t('finishOrder') }</Text>
+					</Button>
+				</Animatable.View>
             )
         }
         else{
@@ -168,11 +183,10 @@ class NewOrderDet extends Component {
             outputRange: ['rgba(0, 0, 0, 0)', '#00000099']
         });
 
-
         return (
             <Container>
                 <Header style={[styles.header , styles.plateformMarginTop]} noShadow>
-                    <Animated.View style={[styles.headerView  , styles.animatedHeader ,{ backgroundColor: backgroundColor}]}>
+                    <Animated.View style={[styles.headerView  , styles.animatedHeader ,{ backgroundColor: '#00000099'}]}>
                         <Button transparent onPress={() => this.props.navigation.goBack()} style={styles.headerBtn}>
                             <Icon type={'FontAwesome'} name={'angle-right'} style={[styles.transform, styles.rightHeaderIcon]} />
                         </Button>
@@ -185,10 +199,10 @@ class NewOrderDet extends Component {
                 <Content  contentContainerStyle={styles.flexGrow} style={styles.homecontent}  onScroll={e => this.headerScrollingAnimation(e) }>
                     <NavigationEvents onWillFocus={payload => this.onFocus(payload)} />
                     { this.renderLoader() }
-                    <Swiper horizontal={Platform.OS === 'ios' ? true :false} dotStyle={styles.eventdoteStyle2} activeDotStyle={styles.eventactiveDot2}
+                    <Swiper key={(this.state.items).length}  horizontal={Platform.OS === 'ios' ? true :false} dotStyle={styles.eventdoteStyle2} activeDotStyle={styles.eventactiveDot2}
                             containerStyle={styles.eventswiper2} showsButtons={false} autoplay={true}>
                         {
-                            this.props.newOrder.items.map((item,i) => (
+                            this.state.items.map((item,i) => (
                                 <View key={i} style={styles.directionColumn}>
                                     <View style={styles.swiperimageEvent2}>
                                         <Image source={ {uri:item.url} } style={{width:'100%' , height:'100%'}} resizeMode={'cover'}/>
@@ -202,18 +216,26 @@ class NewOrderDet extends Component {
                                                 <Text style={[styles.type ,{color:COLORS.boldgray}]}>{ i18n.t('productPrice') } : </Text>
                                                 <Text style={[styles.type ,{color:COLORS.labelBackground}]}>{item.price}</Text>
                                             </View>
-                                            <View style={styles.directionRow}>
-                                                <Text style={[styles.type ,{color:COLORS.boldgray}]}>{ i18n.t('packagingPrice') } : </Text>
-                                                <Text style={[styles.type ,{color:COLORS.labelBackground}]}>{item.package_price}</Text>
-                                            </View>
+                                            {
+                                                item.package_price ? (
+                                                    <View style={styles.directionRow}>
+                                                        <Text style={[styles.type ,{color:COLORS.boldgray}]}>{ i18n.t('packagingPrice') } : </Text>
+                                                        <Text style={[styles.type ,{color:COLORS.labelBackground}]}>{item.package_price}</Text>
+                                                    </View>
+                                                ) : ( <View /> )
+                                            }
+
                                         </Animatable.View>
 
                                         <View style={[styles.desc , styles.mb25 , styles.mt10 ]}>
                                             <Text style={[styles.type , styles.aSFS ,{color:COLORS.boldgray}]}>{ i18n.t('orderSpecification') }</Text>
-                                            <Text style={[styles.type , styles.aSFS ,{color:COLORS.mediumgray}]}>{ i18n.t('packingMethod') } : {item.package_name}</Text>
+                                            {
+                                                item.package_name ? (
+                                                    <Text style={[styles.type , styles.aSFS ,{color:COLORS.mediumgray}]}>{ i18n.t('packingMethod') } : {item.package_name}</Text>
+                                                ) : ( <View /> )
+                                            }
                                             <Text style={[styles.type , styles.aSFS ,{color:COLORS.mediumgray,  writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr'}]}>{item.desc}</Text>
                                         </View>
-
                                     </View>
                                 </View>
                             ))
@@ -251,7 +273,6 @@ class NewOrderDet extends Component {
                                     this.renderCallOrReport()
                                 }
 
-
                             </View>
                         </View>
 
@@ -271,8 +292,6 @@ class NewOrderDet extends Component {
                         </View>
 
                         {this.renderBtn()}
-
-
                     </View>
 
                     <Modal style={{}} isVisible={this.state.fancyModal} onBackdropPress={() => this.fancyModal()}>
@@ -287,7 +306,7 @@ class NewOrderDet extends Component {
                             <Text style={[styles.type , styles.mb25 ,{color:COLORS.boldgray , textAlign:'center' }]}>{ i18n.t('reportReason') }</Text>
 
                             {
-                                this.props.reportsReasons.map((reason, i) => (
+                                this.state.reasons.map((reason, i) => (
                                     <View key={i} style={[ styles.directionRow, styles.mb10]}>
                                         <CheckBox onPress={ () => this.checkReason(reason.id)} checked={this.state.selectedId == reason.id ? true : false} color={COLORS.labelBackground}
                                                   style={[styles.checkBox, {borderColor: COLORS.labelBackground}]}/>
@@ -318,4 +337,4 @@ const mapStateToProps = ({ lang , newOrder, profile , report }) => {
         user: profile.user,
     };
 };
-export default connect(mapStateToProps, {getNewOrder , profile  , acceptOrder , getReportsReasons , setReport})(NewOrderDet);
+export default connect(mapStateToProps, {getNewOrder , profile  , acceptOrder , getReportsReasons , setReport, finishOrder})(NewOrderDet);

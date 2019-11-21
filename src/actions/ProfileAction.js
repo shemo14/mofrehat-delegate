@@ -15,8 +15,7 @@ export const profile = (token) => {
             dispatch({type: 'profile_data', data})
         })
     }
-}
-
+};
 
 export const updateProfile = (data) => {
     return (dispatch) => {
@@ -25,11 +24,15 @@ export const updateProfile = (data) => {
             method: 'POST',
             headers: {Authorization: data.token },
             data: {
-                name: data.name,
-                phone: data.phone,
-                image: data.image,
-                email: data.email,
-                lang: data.lang,
+                name:       data.name,
+                phone:      data.phone,
+                image:      data.image,
+                email:      data.email,
+                lat:        data.lat,
+                long:       data.long,
+                city_id:    data.cityId,
+                address:    data.address,
+                lang:       data.lang,
             }}).then(response => {
             if (response.data.status == 200) {
                 const data = response.data.data;
@@ -50,15 +53,30 @@ export const updateProfile = (data) => {
     }
 }
 
+export const delegatedChecked = (token, props) => {
+    return (dispatch) => {
+        axios({
+            url: CONST.url + 'delegateActiveChecked',
+            method: 'POST',
+            headers: {Authorization: token },
+        }).then(response => {
+                if (response.data.status != 200){
+					props.navigation.navigate('notConfirmed');
+					dispatch({ type: 'delegated_checked' })
+                }
+            }
+        )
+    }
+}
 
-export const logout = (data) => {
+export const logout = (token) => {
     return (dispatch) => {
         axios({
             url: CONST.url + 'logout',
             method: 'POST',
-            headers: {Authorization: data.token },
+            headers: {Authorization: token },
         }).then(response => {
-                AsyncStorage.clear()
+                AsyncStorage.multiRemove(['token', 'auth', 'profile'])
                 dispatch({type: 'logout'})
             }
         )

@@ -5,15 +5,24 @@ import {
     Image,
     TouchableOpacity,
     I18nManager,
-    FlatList,
     Platform,
     Dimensions,
     ImageBackground,
     Animated,
-    ScrollView,
     KeyboardAvoidingView
 } from "react-native";
-import {Container, Content, Icon, Header, List, Right, Left, Button, Item, Input, Label, Form} from 'native-base'
+import {
+	Container,
+	Content,
+	Header,
+	Right,
+	Left,
+	Button,
+	Item,
+	Input,
+	Label,
+	Picker
+} from 'native-base'
 import styles from '../../assets/styles'
 import i18n from '../../locale/i18n'
 import COLORS from '../../src/consts/colors'
@@ -24,12 +33,13 @@ import DrawerCustomization from '../routes/DrawerCustomization';
 import Modal from "react-native-modal";
 import * as Permissions from 'expo-permissions';
 import MapView from 'react-native-maps';
-import * as Location from 'expo-location';
-import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as Animatable from 'react-native-animatable';
-
-
+import {connect} from "react-redux";
+import {getCities, updateProfile} from '../actions'
+import Reactotron from '../../ReactotronConfig';
+import axios from "axios";
+import CONST from "../consts";
 
 const height = Dimensions.get('window').height;
 const IS_IPHONE_X = height === 812 || height === 896;
@@ -44,24 +54,30 @@ class Profile extends Component {
             backgroundColor: new Animated.Value(0),
             availabel: 0,
             profileType:0,
-            fullName: '',
-            mail: '',
-            phone: '',
+            fullName: this.props.user.name,
+            mail: this.props.user.email,
+            phone: this.props.user.phone,
             userImage: null,
             base64: null,
             personalImg: '',
+            personalBase64: null,
+			licensesBase64: null,
+			plateBase64: null,
             location: '',
             isModalVisible: false,
             city: '',
-            mapRegion: null,
+            mapRegion: { latitude: this.props.user.lat, longitude: this.props.user.lng },
             hasLocationPermissions: false,
             initMap: true,
             plateImg: '',
             vehicleLicenses: '',
+            vehicleImg: '',
+			licensesImg: '',
+			selectedCountry: this.props.user.city_id,
+            loader: true,
+			isSubmitted: false
         }
     }
-
-
 
     askPermissionsAsync = async () => {
         await Permissions.askAsync(Permissions.CAMERA);
@@ -82,15 +98,12 @@ class Profile extends Component {
 
         let localUri = result.uri;
         let filename = localUri.split('/').pop();
-        console.log(result);
 
         // check if there is image then set it and make button not disabled
         if (!result.cancelled) {
-            this.setState({ userImage: result.uri ,base64:result.base64 ,personalImg:filename});
+            this.setState({ userImage: result.uri ,personalBase64:result.base64 ,personalImg:filename});
         }
     };
-
-
 
     _plateImage = async () => {
 
@@ -105,11 +118,9 @@ class Profile extends Component {
 
         let localUri = result.uri;
         let filename = localUri.split('/').pop();
-        console.log(result);
 
-        // check if there is image then set it and make button not disabled
         if (!result.cancelled) {
-            this.setState({ userImage: result.uri ,base64:result.base64 ,plateImg:filename});
+            this.setState({ userImage: result.uri ,plateBase64:result.base64 ,plateImg:filename});
         }
     };
 
@@ -127,66 +138,64 @@ class Profile extends Component {
 
         let localUri = result.uri;
         let filename = localUri.split('/').pop();
-        console.log(result);
 
-        // check if there is image then set it and make button not disabled
         if (!result.cancelled) {
-            this.setState({ userImage: result.uri ,base64:result.base64 ,vehicleLicenses:filename});
+            this.setState({ userImage: result.uri ,licensesBase64:result.base64 ,vehicleLicenses:filename});
         }
     };
-
-
 
     _toggleModal = () => this.setState({ isModalVisible: !this.state.isModalVisible });
 
     async componentWillMount() {
+        Reactotron.log('user props', this.props.user);
 
+        axios({
+            url: CONST.url + 'delegate_data',
+            method: 'POST',
+            headers: { Authorization: this.props.user.token },
+        }).then(response => {
+			this.setState({ vehicleImg: response.data.data.vehicle, licensesImg: response.data.data.licenses,  });
+        });
 
+		this.props.getCities(this.props.lang);
         let { status } = await Permissions.askAsync(Permissions.LOCATION);
         if (status !== 'granted') {
             alert('صلاحيات تحديد موقعك الحالي ملغاه');
         }else {
-            const { coords: { latitude, longitude } } = await Location.getCurrentPositionAsync({});
-            const userLocation = { latitude, longitude };
-            this.setState({  initMap: false, mapRegion: userLocation });
-
+            this.setState({  initMap: false });
         }
 
         let getCity = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=';
         getCity += this.state.mapRegion.latitude + ',' + this.state.mapRegion.longitude;
-        getCity += '&key=AIzaSyDYjCVA8YFhqN2pGiW4I8BCwhlxThs1Lc0&language=ar&sensor=true';
+        getCity += '&key=AIzaSyCJTSwkdcdRpIXp2yG7DfSRKFWxKhQdYhQ&language=ar&sensor=true';
 
         console.log(getCity);
 
         try {
             const { data } = await axios.get(getCity);
             this.setState({ city: data.results[0].formatted_address });
-
         } catch (e) {
             console.log(e);
         }
     }
 
+    componentWillReceiveProps(nextProps) {
+        this.setState({ isSubmitted: false })
+		if (nextProps.cities)
+		    this.setState({ loader: false })
+	}
 
-
-    async componentDidMount(){
+	async componentDidMount(){
         await Permissions.askAsync(Permissions.CAMERA);
         await Permissions.askAsync(Permissions.CAMERA_ROLL);
-        const { coords: { latitude, longitude } } = await Location.getCurrentPositionAsync({});
-        const userLocation = { latitude, longitude };
-        this.setState({  initMap: false, mapRegion: userLocation });
+        this.setState({  initMap: false, });
     }
 
-
     _handleMapRegionChange  = async (mapRegion) =>  {
-        console.log(mapRegion);
-        this.setState({ mapRegion });
 
         let getCity = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=';
         getCity += mapRegion.latitude + ',' + mapRegion.longitude;
-        getCity += '&key=AIzaSyDYjCVA8YFhqN2pGiW4I8BCwhlxThs1Lc0&language=ar&sensor=true';
-
-        console.log('locations data', getCity);
+        getCity += '&key=AIzaSyCJTSwkdcdRpIXp2yG7DfSRKFWxKhQdYhQ&language=' + this.props.lang + '&sensor=true';
 
 
         try {
@@ -199,29 +208,9 @@ class Profile extends Component {
         }
     }
 
-    _getLocationAsync = async () => {
-        let { status } = await Permissions.askAsync(Permissions.LOCATION);
-        if (status !== 'granted') {
-            this.setState({
-                locationResult: 'Permission to access location was denied',
-            });
-        } else {
-            this.setState({ hasLocationPermissions: true });
-        }
-
-        let location = await Location.getCurrentPositionAsync({});
-
-        // Center the map on the location we just fetched.
-        this.setState({mapRegion: { latitude: location.coords.latitude, longitude: location.coords.longitude, latitudeDelta: 0.0922, longitudeDelta: 0.0421 }});
-    };
-
-
-
     confirmLocation(){
         this.setState({ isModalVisible: !this.state.isModalVisible })
     }
-
-
 
     setAnimate(availabel){
         if (availabel === 0){
@@ -247,6 +236,98 @@ class Profile extends Component {
         console.log(availabel);
     }
 
+	renderLoader(){
+		if (this.state.loader){
+			return(
+				<View style={{ alignItems: 'center', justifyContent: 'center', height: height , alignSelf:'center' , backgroundColor:'#fff' , width:'100%' , position:'absolute' , zIndex:1  }}>
+					<DoubleBounce size={20} color={COLORS.labelBackground} />
+				</View>
+			);
+		}
+	}
+
+	onUpdateProfile(){
+		const data = {
+			name: this.state.fullName,
+			phone: this.state.phone,
+			image: this.state.personalBase64,
+			email: this.state.mail,
+			lat: this.state.mapRegion.latitude,
+			long: this.state.mapRegion.longitude,
+			address: this.state.city,
+			cityId: this.state.selectedCountry,
+			device_id: null,
+			lang: this.props.lang,
+			token: this.props.user.token
+		};
+
+		this.setState({ isSubmitted: true, profileType: 0 });
+		this.props.updateProfile(data);
+	}
+
+	renderEditProfile(){
+		if (this.state.fullName == '' || this.state.mail == '' || this.state.phone == ''|| this.state.selectedCountry == null ){
+			return (
+				<Button disabled style={[styles.loginBtn ,styles.btnWidth, { backgroundColor: '#999' }]}>
+					<Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
+				</Button>
+			);
+		}
+
+		if (this.state.isSubmitted){
+			return(
+				<View style={{ alignItems: 'center', justifyContent: 'center' }}>
+					<DoubleBounce size={20} style={{ alignSelf: 'center' }} color="#B7264B" />
+				</View>
+			)
+		}
+
+		return (
+			<Animatable.View animation="flash" duration={2200}>
+				<Button onPress={() => this.onUpdateProfile()} style={[styles.loginBtn , styles.mt30]}>
+					<Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
+				</Button>
+			</Animatable.View>
+		);
+	}
+
+	onSubmitDelegate(){
+    	this.setState({ loader: true });
+		axios({
+			url: CONST.url + 'edit_delegate',
+			method: 'POST',
+			headers: { Authorization: this.props.user.token },
+			data: { vehicle: this.state.plateBase64, licenses: this.state.licensesBase64 }
+		}).then(response => {
+			this.setState({ vehicleImg: response.data.data.vehicle, licensesImg: response.data.data.licenses, loader: false, profileType: 1 });
+		});
+	}
+
+	renderEditDelegate(){
+
+		if (this.state.licensesBase64 == null || this.state.plateBase64 == null ){
+			return (
+				<Button disabled style={[styles.loginBtn ,styles.btnWidth, { backgroundColor: '#999' }]}>
+					<Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
+				</Button>
+			);
+		}
+
+		if (this.state.isSubmitted){
+			return(
+				<View style={{ alignItems: 'center', justifyContent: 'center' }}>
+					<DoubleBounce size={20} style={{ alignSelf: 'center' }} color="#B7264B" />
+				</View>
+			)
+		}
+
+		return (
+			<Button onPress={() => this.onSubmitDelegate()} style={[styles.loginBtn , styles.mt30]}>
+				<Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
+			</Button>
+		);
+	}
+
     headerScrollingAnimation(e){
         if (e.nativeEvent.contentOffset.y > 30){
             console.log(e.nativeEvent.contentOffset.y);
@@ -255,23 +336,21 @@ class Profile extends Component {
             this.setAnimate(1)
         }
     }
+
     closeDrawer(){
         this.RBSheet.close()
     }
-
 
     renderProfile(){
         if(this.state.profileType === 0){
             return(
                 <View style={styles.profileParent}>
-
-
                     <Animatable.View animation="zoomIn" duration={1000} style={[styles.profileImgParent , {marginTop:0 , borderColor:'#b8dbeb' , borderWidth:4}]}>
-                        <Image source={require('../../assets/images/profile.png')} style={[styles.profileImg]} resizeMode={'cover'} />
+                        <Image source={{ uri : this.props.user.avatar }} style={[styles.profileImg]} resizeMode={'cover'} />
                     </Animatable.View>
 
                     <View style={styles.directionColumnCenter}>
-                        <Animatable.Text animation="fadeInUp" duration={1400} style={[styles.type , styles.termsText ,{color:COLORS.boldgray }]}>{ i18n.t('fullName') }</Animatable.Text>
+                        <Animatable.Text animation="fadeInUp" duration={1400} style={[styles.type , styles.termsText ,{color:COLORS.boldgray }]}>{ this.props.user.name }</Animatable.Text>
                         <Animatable.View animation="fadeInUp" duration={1800}>
                             <TouchableOpacity onPress={ () => this.setState({profileType:2})} style={styles.directionRowCenter}>
                                 <Image source={require('../../assets/images/edit_profile.png')} style={[styles.headerMenu , styles.transform , {marginRight:7}]} resizeMode={'contain'} />
@@ -284,12 +363,12 @@ class Profile extends Component {
 
                     <Animatable.View animation={I18nManager.isRTL ? "fadeInRight" : "fadeInLeft"} duration={2000} style={[ styles.directionRow , styles.ph23]}>
                         <Image source={require('../../assets/images/smartphone.png')} style={[styles.headerMenu ,styles.mr10]} resizeMode={'contain'} />
-                        <Text style={[styles.type ,{color:COLORS.mediumgray}]}>12365478945</Text>
+                        <Text style={[styles.type ,{color:COLORS.mediumgray}]}>{ this.props.user.phone }</Text>
                     </Animatable.View>
 
                     <Animatable.View animation={I18nManager.isRTL ? "fadeInRight" : "fadeInLeft"} duration={2000} style={[ styles.directionRow , styles.ph23 , styles.mt15]}>
                         <Image source={require('../../assets/images/marker_gray.png')} style={[styles.headerMenu ,styles.mr10]} resizeMode={'contain'} />
-                        <Text style={[styles.type ,{color:COLORS.mediumgray}]}>الرياض - جدة</Text>
+                        <Text style={[styles.type ,{color:COLORS.mediumgray}]}>{ this.props.user.address }</Text>
                     </Animatable.View>
 
                     <View style={[styles.line , {borderColor:'#cfcfcf'}]}/>
@@ -308,16 +387,12 @@ class Profile extends Component {
                             <Image source={require('../../assets/images/license_plate.png')} style={[styles.headerMenu ,styles.mr10]} resizeMode={'contain'} />
                             <Text style={[styles.type ,{color:COLORS.mediumgray}]}>{ i18n.t('plateImg') }</Text>
                         </View>
-                        <Image source={require('../../assets/images/car.jpeg')} style={[styles.carImg]} resizeMode={'cover'} />
-                        <View style={[ styles.directionRowSpace , styles.mt15]}>
-                            <View style={styles.directionRow}>
-                                <Image source={require('../../assets/images/driving_license.png')} style={[styles.headerMenu ,styles.mr10]} resizeMode={'contain'} />
-                                <Text style={[styles.type ,{color:COLORS.mediumgray}]}>{ i18n.t('vehicleLicenses') }</Text>
-                            </View>
-                            <TouchableOpacity >
-                                <Text style={[styles.type ,{color:COLORS.labelBackground}]}>https://imgbb.com/</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <Image source={{ uri: this.state.vehicleImg }} style={[styles.carImg]} resizeMode={'cover'} />
+						<View style={[ styles.directionRow, { marginTop: 15 }]}>
+							<Image source={require('../../assets/images/driving_license.png')} style={[styles.headerMenu ,styles.mr10]} resizeMode={'contain'} />
+							<Text style={[styles.type ,{color:COLORS.mediumgray}]}>{ i18n.t('vehicleLicenses') }</Text>
+						</View>
+						<Image source={{ uri: this.state.licensesImg }} style={[styles.carImg]} resizeMode={'cover'} />
                     </View>
 
                     <View style={[styles.line , {borderColor:'#cfcfcf'}]}/>
@@ -357,6 +432,28 @@ class Profile extends Component {
                                 <Image source={require('../../assets/images/photo-camera-gray.png')} style={styles.regMarker} resizeMode={'contain'} />
                             </View>
 
+							<View>
+								<Item style={styles.itemPicker} regular >
+									<Label style={[styles.labelItem , {top:-18 , left:15 , position:'absolute'}]}>{ i18n.t('city') }</Label>
+									<Picker
+										mode="dropdown"
+										style={styles.picker}
+										placeholderStyle={{ color: "#acabae" }}
+										placeholderIconColor="#acabae"
+										selectedValue={this.state.selectedCountry}
+										onValueChange={(value) => this.setState({ selectedCountry: value })}
+									>
+										<Picker.Item label={ i18n.t('selectCity') } value={null} />
+										{
+											this.props.cities.map((city, i) => (
+												<Picker.Item key={i} label={city.name} value={city.id} />
+											))
+										}
+									</Picker>
+									<Image source={require('../../assets/images/right_arrow_drop.png')} style={styles.pickerImg} resizeMode={'contain'} />
+								</Item>
+							</View>
+
                             <View style={[ styles.itemView , styles.inputMarginTop ,{borderColor: COLORS.mediumgray}]}>
                                 <Item floatingLabel style={[styles.loginItem , { top:0 , height:50 , width:'100%'}]} bordered onPress={() =>this._toggleModal()}>
                                     <Label style={[styles.label , {backgroundColor: '#fff' , color:COLORS.mediumgray ,top:-5}]}>{ i18n.t('location') }</Label>
@@ -372,10 +469,7 @@ class Profile extends Component {
                                 </Item>
                             </View>
 
-
-                            <Button onPress={() => this.setState({profileType:0})} style={[styles.loginBtn , styles.mt30]}>
-                                <Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
-                            </Button>
+                            { this.renderEditProfile() }
 
                         </View>
                     </KeyboardAvoidingView>
@@ -404,9 +498,7 @@ class Profile extends Component {
                             </View>
 
 
-                            <Button onPress={() => this.setState({profileType:1})} style={[styles.loginBtn , styles.mt30]}>
-                                <Text style={styles.btnTxt}>{ i18n.t('save') }</Text>
-                            </Button>
+							{ this.renderEditDelegate() }
 
                         </View>
                     </KeyboardAvoidingView>
@@ -416,12 +508,12 @@ class Profile extends Component {
     }
 
     render() {
-
         const backgroundColor = this.state.backgroundColor.interpolate({
             inputRange: [0, 1],
             outputRange: ['rgba(0, 0, 0, 0)', '#00000099']
         });
 
+        Reactotron.log('map location', this.state.mapRegion);
 
         return (
             <Container>
@@ -437,6 +529,7 @@ class Profile extends Component {
                     </Animated.View>
                 </Header>
                 <Content  contentContainerStyle={styles.flexGrow} style={styles.homecontent}  onScroll={e => this.headerScrollingAnimation(e) }>
+					{ this.renderLoader() }
                     <ImageBackground source={  I18nManager.isRTL ? require('../../assets/images/bg_blue_big.png') : require('../../assets/images/bg_blue_big2.png')} resizeMode={'cover'} style={styles.imageBackground}>
                         <View style={Platform.OS === 'ios' ? styles.mt90 : styles.mT70}>
 
@@ -502,4 +595,11 @@ class Profile extends Component {
     }
 }
 
-export default Profile;
+const mapStateToProps = ({ profile, city, lang }) => {
+	return {
+		user: profile.user,
+		cities: city.cities,
+		lang: lang.lang,
+	};
+};
+export default connect(mapStateToProps, { getCities, updateProfile })(Profile);

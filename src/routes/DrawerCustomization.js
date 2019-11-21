@@ -3,16 +3,24 @@ import {View, Text, Image, TouchableOpacity, ScrollView, Dimensions , I18nManage
 import i18n from "../../locale/i18n";
 import styles from "../../assets/styles";
 import COLORS from "../consts/colors";
+import {connect} from "react-redux";
+import {logout, tempAuth} from "../actions";
 
 const height = Dimensions.get('window').height;
 class DrawerCustomization extends Component {
     constructor(props){
         super(props);
         this.state={
+
         }
     }
 
     tabEvent(tabName){
+        if (tabName == 'login'){
+            this.props.logout(this.props.user.token);
+            this.props.tempAuth();
+        }
+
         this.props.onClose();
         this.props.navigation.navigate(tabName)
     }
@@ -97,19 +105,16 @@ class DrawerCustomization extends Component {
         );
     }
 
-
-
     render() {
         return (
-
             <View style={[styles.drawerParent]}>
                 <TouchableOpacity onPress={() => [this.props.navigation.navigate('profile') , this.props.onClose()]} style={styles.directionRowCenter}>
                     <View style={styles.mandob}>
-                        <Image source={require('../../assets/images/profile.png')} style={[styles.profileImg , {height:50}]} resizeMode={'cover'} />
+                        <Image source={{ uri: this.props.user.avatar }} style={[styles.profileImg , {height:50}]} resizeMode={'cover'} />
                     </View>
                     <View style={styles.directionColumn}>
-                        <Text style={[styles.ques , {writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr'}]}>اسم المستخدم</Text>
-                        <Text style={[styles.type ,{color:COLORS.mediumgray,writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr'  }]}>رقم المركبة س م ع 1234</Text>
+                        <Text style={[styles.ques , {writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr'}]}>{ this.props.user.name }</Text>
+                        {/*<Text style={[styles.type ,{color:COLORS.mediumgray,writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr'  }]}>رقم المركبة س م ع 1234</Text>*/}
                     </View>
                 </TouchableOpacity>
 
@@ -137,8 +142,6 @@ class DrawerCustomization extends Component {
 
 
                         {  this.renderMenuTabs('login') }
-
-
                     </View>
                 </ScrollView>
             </View>
@@ -147,12 +150,11 @@ class DrawerCustomization extends Component {
     }
 }
 
-// const mapStateToProps = ({ auth, profile }) => {
-//     return {
-//         auth: auth.user,
-//         user: profile.user
-//     };
-// };
-//
-// export default connect(mapStateToProps, { logout, tempAuth })(DrawerCustomization);
-export default DrawerCustomization;
+const mapStateToProps = ({ auth, profile }) => {
+    return {
+        auth: auth.user,
+        user: profile.user
+    };
+};
+
+export default connect(mapStateToProps, { logout, tempAuth })(DrawerCustomization);

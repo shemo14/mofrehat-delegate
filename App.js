@@ -1,5 +1,5 @@
 import React from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, AsyncStorage, Platform } from 'react-native';
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { AppLoading } from 'expo';
@@ -9,11 +9,10 @@ import './ReactotronConfig';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistedStore } from './src/store';
-
+import { Notifications } from 'expo';
 
 
 export default class App extends React.Component {
-
   constructor(props) {
     super(props);
     this.state = {
@@ -21,10 +20,19 @@ export default class App extends React.Component {
     };
 
     // I18nManager.forceRTL(true)
-
+    // AsyncStorage.clear();
   }
 
   async componentDidMount() {
+    if (Platform.OS === 'android') {
+      Notifications.createChannelAndroidAsync('orders', {
+        name: 'Chat messages',
+        sound: true,
+      });
+    }
+
+    Notifications.addListener(this.handleNotification);
+
     await Font.loadAsync({
       cairo: require('./assets/fonts/Cairo-Regular.ttf'),
       cairoBold: require('./assets/fonts/Cairo-Bold.ttf'),
@@ -34,7 +42,13 @@ export default class App extends React.Component {
       Roboto_medium: require('native-base/Fonts/Roboto_medium.ttf'),
       ...Ionicons.font,
     });
-    this.setState({ isReady: true });
+    this.setState({isReady: true});
+  }
+
+  handleNotification = (notification) => {
+    if (notification && notification.origin !== 'received') {
+      this.props.navigation.navigate('notifications');
+    }
   }
 
   render() {
