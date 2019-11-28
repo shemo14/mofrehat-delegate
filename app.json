@@ -9,7 +9,7 @@
       "android",
       "web"
     ],
-    "version": "1.0.4",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -29,12 +29,13 @@
       "infoPlist": {
         "NSCameraUsageDescription": "App need this permission to update profile photo.",
         "NSPhotoLibraryAddUsageDescription": "App need this permission to update profile photo.",
+        "NSLocationWhenInUseUsageDescription": "App need this permission to determine your location for clients and warehouses' owners.",
         "NSPhotoLibraryUsageDescription": "App need this permission to update profile photo."
       }
     },
     "android": {
       "package": "com.app.mofrehatdelegate",
-      "versionCode": 6,
+      "versionCode": 11,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyBripzhDn5xRMGI_ohKAsIcbd1-UuKS6uY"

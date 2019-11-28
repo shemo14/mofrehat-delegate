@@ -82,11 +82,9 @@ class Profile extends Component {
     askPermissionsAsync = async () => {
         await Permissions.askAsync(Permissions.CAMERA);
         await Permissions.askAsync(Permissions.CAMERA_ROLL);
-
     };
 
     _personalImage = async () => {
-
         this.askPermissionsAsync();
 
         let result = await ImagePicker.launchImageLibraryAsync({
